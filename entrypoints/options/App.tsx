@@ -16,22 +16,22 @@ function App() {
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="min-h-screen bg-surface font-sans text-ink">
-      <header className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-border bg-card px-6 py-4">
-        <div className="flex items-center gap-2.5 justify-self-start">
+      <header className="flex flex-col items-center gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4 md:grid md:grid-cols-[1fr_auto_1fr]">
+        <div className="flex items-center gap-2.5 self-start md:justify-self-start">
           <span className="grid size-7 place-items-center rounded-lg bg-brand font-display text-sm font-bold text-white">
             W
           </span>
           <span className="font-display text-base font-bold tracking-tight">Webtime</span>
         </div>
-        <TabsList className="justify-self-center">
+        <TabsList className="w-full max-w-full overflow-x-auto md:w-auto md:justify-self-center">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="rules">Blocking rules</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
         </TabsList>
-        <div />
+        <div className="hidden md:block" />
       </header>
 
-      <main className="mx-auto max-w-[1000px] px-6 py-6">
+      <main className="mx-auto max-w-[1000px] px-4 py-4 sm:px-6 sm:py-6">
         {!data ? (
           <p className="py-16 text-center text-sm text-muted">Loading…</p>
         ) : (

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SiteIcon } from '@/components/site-icon';
 import { Switch } from '@/components/ui/switch';
-import { RuleDialog } from './RuleDialog';
+import { RuleDialog } from '@/components/rule-dialog';
 import type { ExtensionData } from '@/hooks/use-extension-data';
 import { isWithinWindow, windowEndDate } from '@/utils/blocker';
 import { todayISODate } from '@/utils/date';
@@ -77,7 +77,7 @@ export function RulesTab({ data }: { data: ExtensionData }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="font-display text-[22px] font-bold tracking-tight">Blocking rules</div>
           <div className="mt-0.5 text-[13px] text-muted">
@@ -88,74 +88,78 @@ export function RulesTab({ data }: { data: ExtensionData }) {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="flex items-center justify-between px-5 pt-4 pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-3">
           <span className="font-display text-[15px] font-semibold">Site rules</span>
           <span className="text-[12.5px] text-faint">
             {rules.length} rule{rules.length === 1 ? '' : 's'}
           </span>
         </div>
-        <div className="grid grid-cols-[1fr_200px_190px_60px_70px] gap-3 border-b border-divider px-5 py-2 text-[11px] font-semibold tracking-wide text-faint uppercase">
-          <span>Site</span>
-          <span>Rule</span>
-          <span>Today</span>
-          <span className="text-right">On</span>
-          <span className="text-right">Edit</span>
-        </div>
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            <div className="grid grid-cols-[1fr_200px_190px_60px_70px] gap-3 border-b border-divider px-5 py-2 text-[11px] font-semibold tracking-wide text-faint uppercase">
+              <span>Site</span>
+              <span>Rule</span>
+              <span>Today</span>
+              <span className="text-right">On</span>
+              <span className="text-right">Edit</span>
+            </div>
 
-        {rules.length === 0 && (
-          <p className="px-5 py-8 text-center text-[13px] text-faint">
-            No rules yet — add one to start blocking a site.
-          </p>
-        )}
+            {rules.length === 0 && (
+              <p className="px-5 py-8 text-center text-[13px] text-faint">
+                No rules yet — add one to start blocking a site.
+              </p>
+            )}
 
-        {rules.map((rule) => (
-          <div
-            key={rule.id}
-            className={`grid grid-cols-[1fr_200px_190px_60px_70px] items-center gap-3 border-b border-divider px-5 py-3.5 last:border-b-0 ${
-              rule.enabled ? '' : 'opacity-60'
-            }`}
-          >
-            <span className="flex items-center gap-2.5 text-[13.5px] font-semibold">
-              <SiteIcon domain={rule.domain} size={28} />
-              {rule.domain}
-            </span>
-            <span>{modeBadge(rule)}</span>
-            <StatusCell rule={rule} usageSecondsToday={todayUsage[rule.domain] ?? 0} />
-            <span className="flex justify-end">
-              <Switch
-                checked={rule.enabled}
-                onCheckedChange={(checked) => saveRule({ ...rule, enabled: checked })}
-                aria-label={`Toggle ${rule.domain}`}
-              />
-            </span>
-            <span className="flex justify-end gap-1">
-              <button
-                type="button"
-                onClick={() => openEdit(rule)}
-                className="grid size-7 place-items-center rounded-md text-faint hover:bg-divider hover:text-ink"
-                aria-label={`Edit ${rule.domain}`}
+            {rules.map((rule) => (
+              <div
+                key={rule.id}
+                className={`grid grid-cols-[1fr_200px_190px_60px_70px] items-center gap-3 border-b border-divider px-5 py-3.5 last:border-b-0 ${
+                  rule.enabled ? '' : 'opacity-60'
+                }`}
               >
-                <SquarePen className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm(`Delete the rule for ${rule.domain}?`)) removeRule(rule.id);
-                }}
-                className="grid size-7 place-items-center rounded-md text-faint hover:bg-danger-soft hover:text-danger"
-                aria-label={`Delete ${rule.domain}`}
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </span>
+                <span className="flex items-center gap-2.5 text-[13.5px] font-semibold">
+                  <SiteIcon domain={rule.domain} size={28} />
+                  <span className="truncate">{rule.domain}</span>
+                </span>
+                <span>{modeBadge(rule)}</span>
+                <StatusCell rule={rule} usageSecondsToday={todayUsage[rule.domain] ?? 0} />
+                <span className="flex justify-end">
+                  <Switch
+                    checked={rule.enabled}
+                    onCheckedChange={(checked) => saveRule({ ...rule, enabled: checked })}
+                    aria-label={`Toggle ${rule.domain}`}
+                  />
+                </span>
+                <span className="flex justify-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(rule)}
+                    className="grid size-7 place-items-center rounded-md text-faint hover:bg-divider hover:text-ink"
+                    aria-label={`Edit ${rule.domain}`}
+                  >
+                    <SquarePen className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Delete the rule for ${rule.domain}?`)) removeRule(rule.id);
+                    }}
+                    className="grid size-7 place-items-center rounded-md text-faint hover:bg-danger-soft hover:text-danger"
+                    aria-label={`Delete ${rule.domain}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       <button
         type="button"
         onClick={openCreate}
-        className="flex items-center gap-3 rounded-2xl border border-dashed border-[#cfd4dd] bg-card px-5 py-4"
+        className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-[#cfd4dd] bg-card px-5 py-4"
       >
         <span className="grid size-9 place-items-center rounded-[10px] bg-divider text-lg font-bold text-brand">
           ＋

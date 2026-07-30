@@ -84,11 +84,11 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 rounded-2xl border border-brand-soft-strong bg-gradient-to-r from-brand-soft to-brand-soft/60 px-5 py-4">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-brand-soft-strong bg-gradient-to-r from-brand-soft to-brand-soft/60 px-5 py-4">
         <span className="grid size-11 flex-none place-items-center rounded-[13px] bg-brand text-xl text-white shadow-[0_8px_18px_-8px_rgba(91,91,214,0.6)]">
           🔒
         </span>
-        <div className="flex-1">
+        <div className="min-w-[200px] flex-1">
           <div className="text-[15px] font-bold">No account. No servers. No sync.</div>
           <div className="mt-0.5 text-[13px] leading-relaxed text-muted">
             Your browsing history is processed on-device and never leaves this computer. We
@@ -100,7 +100,7 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="text-xs font-semibold tracking-wide text-faint uppercase">Stored on this device</div>
           <div className="mt-3 flex flex-col gap-2.5 text-[13.5px] font-medium">
@@ -140,12 +140,12 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="px-5 pt-4 pb-3 font-display text-[15px] font-semibold">Data controls</div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-divider px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-divider px-5 py-3.5">
           <div>
             <div className="text-[13.5px] font-semibold">Keep history for</div>
             <div className="mt-0.5 text-xs text-muted">Older data is deleted automatically.</div>
           </div>
-          <div className="flex flex-none gap-1 rounded-[9px] bg-divider p-1">
+          <div className="flex flex-wrap gap-1 rounded-[9px] bg-divider p-1">
             {RETENTION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -161,7 +161,7 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-divider px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-divider px-5 py-3.5">
           <div>
             <div className="text-[13.5px] font-semibold">Pause tracking in Incognito</div>
             <div className="mt-0.5 text-xs text-muted">Private windows are never recorded.</div>
@@ -172,7 +172,7 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
           />
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-divider px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-divider px-5 py-3.5">
           <div>
             <div className="text-[13.5px] font-semibold">Excluded sites</div>
             <div className="mt-0.5 text-xs text-muted">These are never tracked, even in normal windows.</div>
@@ -216,7 +216,7 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
           <div>
             <div className="text-[13.5px] font-bold">Your data, portable</div>
@@ -224,7 +224,7 @@ export function PrivacyTab({ data }: { data: ExtensionData }) {
               Take a full copy with you, or restore from a backup file.
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={handleExport}>
               ⬇ Export JSON
             </Button>

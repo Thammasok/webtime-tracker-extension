@@ -62,8 +62,8 @@ function App() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(120%_90%_at_50%_-10%,#efeefc,#f7f8fa_55%)] p-10">
-      <div className="relative flex w-full max-w-[560px] flex-col items-center rounded-2xl px-10 py-12 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(120%_90%_at_50%_-10%,#efeefc,#f7f8fa_55%)] p-4 sm:p-10">
+      <div className="relative flex w-full max-w-[560px] flex-col items-center rounded-2xl px-5 py-10 text-center sm:px-10 sm:py-12">
         <div className="absolute top-0 left-0 flex items-center gap-2 opacity-70">
           <span className="grid size-6 place-items-center rounded-[7px] bg-brand text-[13px] font-bold text-white">
             W
@@ -75,7 +75,7 @@ function App() {
           🌤️
         </div>
 
-        <h1 className="mt-6 font-display text-[28px] font-bold tracking-tight text-ink">
+        <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-ink sm:text-[28px]">
           Taking a break from <span className="text-brand">{domain || 'this site'}</span>
         </h1>
 
@@ -102,7 +102,7 @@ function App() {
           </div>
         )}
 
-        <div className="mt-7 flex gap-2.5">
+        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
           <Button size="lg" onClick={() => window.history.back()}>
             Back to work →
           </Button>

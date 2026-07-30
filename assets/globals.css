@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@theme {
+  /* The mockup uses Hanken Grotesk / Bricolage Grotesque via Google Fonts. We don't fetch fonts
+     over the network here — this extension's whole pitch is "nothing leaves this device," so a
+     live Google Fonts request on every popup/dashboard open would undercut that. System sans
+     stacks are close enough in shape (grotesque, rounded) to preserve the layout and feel. */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Soft Clarity palette, lifted from the design mockup (.claude/design/Webtime Tracker.dc.html) */
+  --color-brand: #5b5bd6;
+  --color-brand-hover: #4f46d1;
+  --color-brand-soft: #ecebfb;
+  --color-brand-soft-strong: #e0ddf5;
+
+  --color-ink: #1c2330;
+  --color-muted: #6b7280;
+  --color-faint: #9aa1ad;
+
+  --color-surface: #f7f8fa;
+  --color-card: #ffffff;
+  --color-border: #eef0f3;
+  --color-divider: #f1f2f5;
+
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fdecec;
+  --color-danger-border: #f0d4d4;
+
+  --color-success: #16a34a;
+  --color-success-soft: #e9f7ee;
+
+  --color-warning-text: #7a5b16;
+  --color-warning-soft: #fbf1dd;
+
+  --color-category-social: #f0567a;
+  --color-category-work: #5b5bd6;
+  --color-category-news: #efa14f;
+  --color-category-other: #d5d9e0;
+
+  --radius-card: 14px;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+}

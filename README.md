@@ -54,7 +54,7 @@ unpacked** → select `.output/chrome-mv3`. In Firefox, use `about:debugging` �
 entrypoints/
   background.ts     background service worker: tracking + blocking listeners, alarms
   popup/             toolbar popup — today's usage, quick block toggle
-  options/           dashboard — Overview / Blocking rules / Privacy tabs
+  options/           dashboard — Summary / Blocking rules / Privacy tabs
   blocked/           the redirect target for blocked navigations
 utils/
   storage.ts         the only module that touches raw browser.storage.local

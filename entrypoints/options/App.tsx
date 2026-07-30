@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useExtensionData } from '@/hooks/use-extension-data';
-import { OverviewTab } from './OverviewTab';
+import { SummaryTab } from './SummaryTab';
 import { RulesTab } from './RulesTab';
 import { PrivacyTab } from './PrivacyTab';
 
 function initialTab(): string {
   const hash = window.location.hash.replace('#', '');
-  return ['overview', 'rules', 'privacy'].includes(hash) ? hash : 'overview';
+  return ['summary', 'rules', 'privacy'].includes(hash) ? hash : 'summary';
 }
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
           <span className="font-display text-base font-bold tracking-tight">Webtime</span>
         </div>
         <TabsList className="w-full max-w-full overflow-x-auto md:w-auto md:justify-self-center">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
           <TabsTrigger value="rules">Blocking rules</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
         </TabsList>
@@ -36,8 +36,8 @@ function App() {
           <p className="py-16 text-center text-sm text-muted">Loading…</p>
         ) : (
           <>
-            <TabsContent value="overview">
-              <OverviewTab data={data} />
+            <TabsContent value="summary">
+              <SummaryTab data={data} />
             </TabsContent>
             <TabsContent value="rules">
               <RulesTab data={data} />

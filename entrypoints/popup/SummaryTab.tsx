@@ -14,7 +14,7 @@ const RANGES = [
 
 const TOP_SITES_SHOWN = 5;
 
-export function DashboardTab({ data }: { data: ExtensionData }) {
+export function SummaryTab({ data }: { data: ExtensionData }) {
   const [rangeDays, setRangeDays] = useState<1 | 7 | 30>(7);
   const { usage } = data;
 

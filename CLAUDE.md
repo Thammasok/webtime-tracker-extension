@@ -10,8 +10,8 @@ on a schedule / daily limit. All data is local-only: `browser.storage.local`, ne
 network calls for anything but the sites the user visits themselves.
 
 Full design spec: `docs/webtime-tracker-dev-plan.md`. Visual design source: `.claude/design/Webtime
-Tracker.dc.html` (popup = "1c Soft Clarity"; dashboard tabs = 2a/3a Overview, 4a Blocking rules, 5a
-Privacy; blocked page = 2b).
+Tracker.dc.html` (popup = "1c Soft Clarity"; dashboard tabs = 2a/3a Overview (renamed "Summary" in
+the app), 4a Blocking rules, 5a Privacy; blocked page = 2b).
 
 ## Commands
 
@@ -39,7 +39,7 @@ Four isolated contexts sharing state only through `browser.storage.local` and
 ```
 entrypoints/background.ts   service worker: tracking listeners, blocking sync, alarms
 entrypoints/popup/          toolbar popup — today's usage, quick block toggle
-entrypoints/options/        dashboard — Overview / Blocking rules / Privacy tabs
+entrypoints/options/        dashboard — Summary / Blocking rules / Privacy tabs
 entrypoints/blocked/        redirect target for a blocked navigation
 ```
 

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useExtensionData } from '@/hooks/use-extension-data';
 import { TodayTab } from './TodayTab';
-import { DashboardTab } from './DashboardTab';
+import { SummaryTab } from './SummaryTab';
 import { BlockTab } from './BlockTab';
 import { PolicyTab } from './PolicyTab';
 
 const MENU_ITEMS = [
   { key: 'today', label: 'Today' },
-  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'summary', label: 'Summary' },
   { key: 'block', label: 'Block' },
   { key: 'policy', label: 'Policy' },
 ] as const;
@@ -45,7 +45,7 @@ function App() {
         ) : (
           <>
             {tab === 'today' && <TodayTab data={data} />}
-            {tab === 'dashboard' && <DashboardTab data={data} />}
+            {tab === 'summary' && <SummaryTab data={data} />}
             {tab === 'block' && <BlockTab data={data} />}
             {tab === 'policy' && <PolicyTab data={data} />}
           </>

@@ -9,7 +9,7 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   Other: 'var(--color-category-other)',
 };
 
-// A small, best-effort static lookup for the Overview tab's category breakdown. This is
+// A small, best-effort static lookup for the Summary tab's category breakdown. This is
 // display-only — it never touches the stored DailyUsage/UsageStore schema, so it can be edited,
 // expanded, or swapped for something smarter without a migration.
 const CATEGORY_BY_DOMAIN: Record<string, Category> = {

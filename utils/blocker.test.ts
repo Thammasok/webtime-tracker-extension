@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBlockedNow } from '@/utils/blocker';
+import { isBlockedNow, ruleToDnrRule } from '@/utils/blocker';
 import type { BlockRule } from '@/utils/types';
 
 function rule(overrides: Partial<BlockRule>): BlockRule {
@@ -73,5 +73,17 @@ describe('isBlockedNow', () => {
       const degenerate = rule({ mode: 'schedule', windows: [{ days: [0, 1, 2, 3, 4, 5, 6], start: '09:00', end: '09:00' }] });
       expect(isBlockedNow(degenerate, 0, new Date('2026-07-30T09:00:00'))).toBe(false);
     });
+  });
+});
+
+describe('ruleToDnrRule', () => {
+  // Regression: requestDomains looked like the natural fit for "block this domain and its
+  // subdomains", but on Edge it only matched the bare domain — a rule for 'facebook.com' left
+  // 'www.facebook.com' unblocked. '||domain^' is the adblock-style domain anchor and reliably
+  // matches the domain plus every subdomain.
+  it('uses a domain-anchored urlFilter, not requestDomains, so subdomains are covered', () => {
+    const dnrRule = ruleToDnrRule(rule({ domain: 'facebook.com' }));
+    expect(dnrRule.condition.urlFilter).toBe('||facebook.com^');
+    expect(dnrRule.condition.requestDomains).toBeUndefined();
   });
 });

@@ -88,14 +88,17 @@ export function ruleToDnrRule(rule: BlockRule): Browser.declarativeNetRequest.Ru
           : { extensionPath: blockedPagePath(rule.domain) },
     },
     condition: {
-      // '||domain^' is the adblock-style domain anchor: matches the domain and every subdomain
-      // (www., m., ...). requestDomains looked like the more obvious fit, but on Edge it only
-      // matched the bare domain and silently let 'www.facebook.com' through — confirmed by
-      // reproducing with a real rule (blocked facebook.com, not www.facebook.com).
-      urlFilter: `||${rule.domain}^`,
+      // Match the exact domain and www. subdomain only (not all subdomains).
+      // e.g. google.com blocks google.com and www.google.com, but not console.google.com
+      regexFilter: String.raw`^https?://(www\.)?${escapeRegex(rule.domain)}(:[0-9]|/|\?|$)`,
+      isUrlFilterCaseSensitive: false,
       resourceTypes: ['main_frame'],
     },
   }
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
 async function currentlyBlockedRules(): Promise<BlockRule[]> {

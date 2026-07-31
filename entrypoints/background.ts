@@ -79,6 +79,7 @@ export default defineBackground(() => {
     browser.webNavigation.onBeforeNavigate.addListener((details) => {
       if (details.frameId !== 0) return; // only ever redirect top-level (main_frame) navigations
       resolveBlockedRedirect(details.url).then((redirectUrl) => {
+        console.log('[background] Firefox block check - URL:', details.url, '-> redirect:', redirectUrl);
         if (redirectUrl) browser.tabs.update(details.tabId, { url: redirectUrl });
       });
     });

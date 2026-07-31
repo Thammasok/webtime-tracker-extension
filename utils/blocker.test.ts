@@ -77,13 +77,42 @@ describe('isBlockedNow', () => {
 });
 
 describe('ruleToDnrRule', () => {
-  // Regression: requestDomains looked like the natural fit for "block this domain and its
-  // subdomains", but on Edge it only matched the bare domain — a rule for 'facebook.com' left
-  // 'www.facebook.com' unblocked. '||domain^' is the adblock-style domain anchor and reliably
-  // matches the domain plus every subdomain.
-  it('uses a domain-anchored urlFilter, not requestDomains, so subdomains are covered', () => {
+  // Edge has a bug where both '||domain^' urlFilter AND requestDomains fail to match subdomains
+  // like 'www.facebook.com' when the rule targets 'facebook.com'. Use regexFilter as workaround.
+  it('uses regexFilter to match domain and www subdomain only', () => {
     const dnrRule = ruleToDnrRule(rule({ domain: 'facebook.com' }));
-    expect(dnrRule.condition.urlFilter).toBe('||facebook.com^');
+    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?facebook\\.com(:[0-9]|/|\\?|$)');
+    expect(dnrRule.condition.isUrlFilterCaseSensitive).toBe(false);
+    expect(dnrRule.condition.urlFilter).toBeUndefined();
     expect(dnrRule.condition.requestDomains).toBeUndefined();
+  });
+
+  it('escapes special regex characters in domain', () => {
+    const dnrRule = ruleToDnrRule(rule({ domain: 'example.co.uk' }));
+    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?example\\.co\\.uk(:[0-9]|/|\\?|$)');
+  });
+
+  it('regex matches domain and www subdomain, but not other subdomains', () => {
+    const dnrRule = ruleToDnrRule(rule({ domain: 'google.com' }));
+    const pattern = new RegExp(dnrRule.condition.regexFilter!, 'i');
+
+    // Should match - base domain and www only
+    expect(pattern.test('https://google.com')).toBe(true);
+    expect(pattern.test('https://google.com/')).toBe(true);
+    expect(pattern.test('https://www.google.com')).toBe(true);
+    expect(pattern.test('https://www.google.com/')).toBe(true);
+    expect(pattern.test('https://www.google.com/search?q=test')).toBe(true);
+    expect(pattern.test('https://google.com?foo=bar')).toBe(true);
+    expect(pattern.test('http://google.com')).toBe(true);
+    expect(pattern.test('https://google.com:443')).toBe(true);
+
+    // Should NOT match - other subdomains
+    expect(pattern.test('https://mail.google.com')).toBe(false);
+    expect(pattern.test('https://console.google.com')).toBe(false);
+    expect(pattern.test('https://docs.google.com')).toBe(false);
+
+    // Should NOT match - different domains
+    expect(pattern.test('https://google.com.evil.com')).toBe(false);
+    expect(pattern.test('https://notgoogle.com')).toBe(false);
   });
 });

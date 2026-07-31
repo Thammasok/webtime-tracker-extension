@@ -123,7 +123,15 @@ export async function syncBlockRules(): Promise<void> {
   const addRules = desired.filter((r) => !existingIds.has(r.id) || removeRuleIds.includes(r.id));
 
   if (addRules.length || removeRuleIds.length) {
-    await browser.declarativeNetRequest.updateDynamicRules({ addRules, removeRuleIds });
+    // updateDynamicRules rejects the whole batch on a malformed rule (e.g. an invalid
+    // redirectUrl typed into the rule dialog) — without this catch that rejection was silently
+    // swallowed (no caller awaits syncBlockRules()), so a bad rule looked like "blocking doesn't
+    // work" with zero visible error anywhere.
+    try {
+      await browser.declarativeNetRequest.updateDynamicRules({ addRules, removeRuleIds });
+    } catch (err) {
+      console.error('syncBlockRules: updateDynamicRules failed', err, { addRules, removeRuleIds });
+    }
   }
 }
 

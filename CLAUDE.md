@@ -47,17 +47,33 @@ entrypoints/blocked/        redirect target for a blocked navigation
   other context reads/writes through its typed functions (`getUsage`, `addUsageSeconds`,
   `getRules`, `upsertRule`, `getSettings`, `exportData`, `clearAllData`, ...). Grep for
   `browser.storage.local` outside that file before adding a new read/write path.
+- `utils/domain.ts` is the only module that touches `tldts`. `hostnameFromUrl`/`domainFromUrl`
+  extract the full hostname vs. the eTLD+1 from a URL; `isSubdomainSpecific` and
+  `normalizeDomainInput` are what let a `BlockRule.domain` (and the rule-dialog/excluded-sites
+  inputs) be either a bare eTLD+1 (matches itself + `www.`) or one exact subdomain (matches only
+  that host) — see `utils/blocker.ts#matchesRuleDomain`/`#ruleToDnrRule` for the two matching
+  regimes this produces.
 - `utils/tracker.ts` owns the active session (`ActiveSession` in `browser.storage.session`, *not*
   a module variable — the service worker can be killed at any time). `resolveTrackableDomain` is
-  a pure function (idle/focus/incognito/excluded-domain in → domain or `null` out); the
+  a pure function (idle/focus/incognito/excluded-domain in → tracking key or `null` out); the
   `browser.idle`/`windows`/`tabs` querying glue lives in `background.ts` and is not unit-tested
-  (fake-browser doesn't mock `idle`).
+  (fake-browser doesn't mock `idle`). Usage is tracked per **exact subdomain**, not eTLD+1 — only
+  a `www.` prefix collapses into the bare domain — so `mail.google.com` and `docs.google.com`
+  accrue under distinct keys in `DailyUsage`, and the Today/Summary tabs list them as separate
+  sites. Never write both a subdomain key and its eTLD+1 for the same tick: `usage-summary.ts`
+  sums every key in a day, so that would double-count it everywhere (totals, category
+  breakdown, daily average).
 - `utils/blocker.ts` owns `isBlockedNow` (pure evaluator for all three block modes) and
   `syncBlockRules` (diffs the desired blocked-domain set against
   `declarativeNetRequest.getDynamicRules()` on Chrome/Edge). **Firefox does not use DNR at all** —
   its redirect support has historically had gaps, so `background.ts` registers a
   `webNavigation.onBeforeNavigate` listener (gated by `import.meta.env.FIREFOX`) that calls
-  `resolveBlockedRedirect` and `tabs.update`s directly.
+  `resolveBlockedRedirect` and `tabs.update`s directly. `usageForRuleDomain` is what makes a daily
+  limit correct at either matching granularity: a subdomain-specific rule reads its own tracked
+  key directly, but a bare-domain rule sums usage across every subdomain that rolls up to its
+  eTLD+1 (since tracking is per-subdomain) — every UI that shows a rule's today-usage
+  (`RulesTab`, `BlockTab`, `SummaryTab`, the blocked page) must go through this helper rather than
+  indexing `usage.days[...][rule.domain]` directly.
 - Popup and dashboard read storage directly via `hooks/use-extension-data.ts` (subscribes to
   `storage.onChanged`) — never by messaging the background worker, which may be asleep.
 - `utils/rule-actions.ts` wraps every rule mutation with a `SYNC_RULES` message so the background
@@ -87,6 +103,17 @@ entrypoints/blocked/        redirect target for a blocked navigation
    initial (`components/site-icon.tsx`); fonts are a system-font stack (`assets/globals.css`).
 7. **DNR dynamic rule ids must be deterministic per rule**, not random — `syncBlockRules` hashes
    `rule.id` (see `ruleId()` in `blocker.ts`) so re-syncing doesn't leak orphaned DNR rules.
+8. **A rule's today-usage must be read via `usageForRuleDomain`, never `usage.days[...][rule.domain]`
+   directly.** Usage is tracked per exact subdomain, so a bare-domain rule's key alone under-counts
+   its daily limit — the helper sums every subdomain rolling up to it. Bypassing it silently breaks
+   daily limits for any rule whose site has multiple tracked subdomains.
+9. **A percentage `height` only resolves against a definite ancestor height.** In a flex column,
+   that means every ancestor between the fixed-height container and the percentage-height element
+   must use `align-items: stretch` (the default) — an `items-end`/`items-center` anywhere in that
+   chain breaks the stretch and the element silently renders at zero height with no error. This is
+   exactly what happened to the dashboard's "Daily activity" bars (`SummaryTab.tsx`): labels
+   rendered fine, bars were invisible, because `items-end` on the chart row stopped the per-day
+   column from stretching to the row's `h-[190px]`.
 
 ## Testing
 
@@ -102,7 +129,10 @@ Documented inline where they matter (`wxt.config.ts`, `utils/blocker.ts`, `utils
 capability check; `Settings` has two additive fields (`pauseInIncognito`, `excludedDomains`) for
 the Privacy tab; no redirect-count telemetry (`declarativeNetRequestFeedback` isn't viable
 cross-browser); no "Focus mode" rule-grouping; charts are hand-rolled, not a charting dependency;
-category breakdown is a small display-only static lookup, not part of the stored schema.
+category breakdown is a small display-only static lookup, not part of the stored schema (though
+now functional at subdomain granularity — see below); `BlockRule.domain` can be a bare eTLD+1 or
+one exact subdomain (`utils/domain.ts#isSubdomainSpecific`), which the dev-plan doesn't
+distinguish — matching, DNR regex generation, and usage tracking all branch on it.
 
 ## Not yet done
 

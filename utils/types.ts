@@ -20,7 +20,7 @@ export interface ScheduleWindow {
 
 export interface BlockRule {
   id: string; // uuid
-  domain: Domain; // match on eTLD+1 (and its subdomains)
+  domain: Domain; // eTLD+1 (blocks bare + www.) or an exact subdomain host (blocks only that host)
   mode: BlockMode;
   enabled: boolean;
   redirectUrl?: string; // mode 'redirect'; if absent, falls back to /blocked.html

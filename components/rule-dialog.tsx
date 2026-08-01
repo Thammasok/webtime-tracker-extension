@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { normalizeDomainInput } from '@/utils/domain';
+import { isSubdomainSpecific, normalizeDomainInput } from '@/utils/domain';
 import { saveRule } from '@/utils/rule-actions';
 import type { BlockMode, BlockRule } from '@/utils/types';
 
@@ -39,6 +39,9 @@ export function RuleDialog({
   const [dailyLimitMinutes, setDailyLimitMinutes] = useState('');
   const [useLimit, setUseLimit] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const normalizedDomain = normalizeDomainInput(domainInput);
+  const isSubdomainRule = normalizedDomain != null && isSubdomainSpecific(normalizedDomain);
 
   useEffect(() => {
     if (!open) return;
@@ -132,11 +135,16 @@ export function RuleDialog({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted">Domain</label>
             <Input
-              placeholder="reddit.com"
+              placeholder="reddit.com or mail.example.com"
               value={domainInput}
               onChange={(e) => setDomainInput(e.target.value)}
               disabled={!!initialRule}
             />
+            <p className="text-[11.5px] text-faint">
+              {isSubdomainRule
+                ? `Blocks only ${normalizedDomain} — not the rest of the site.`
+                : 'Blocks the bare domain and its www. subdomain. Type a full subdomain (e.g. mail.example.com) to block just that one.'}
+            </p>
           </div>
 
           <div className="flex gap-1 rounded-[10px] bg-divider p-1">

@@ -6,7 +6,7 @@ import type { ExtensionData } from '@/hooks/use-extension-data';
 import { CATEGORY_COLORS } from '@/utils/category';
 import { lastNDates } from '@/utils/date';
 import { formatDuration } from '@/utils/format';
-import { isBlockedNow } from '@/utils/blocker';
+import { isBlockedNow, usageForRuleDomain } from '@/utils/blocker';
 import { toggleAlwaysBlock } from '@/utils/rule-actions';
 import {
   CATEGORY_ORDER,
@@ -48,7 +48,7 @@ export function SummaryTab({ data }: { data: ExtensionData }) {
 
   const enabledRules = rules.filter((r) => r.enabled);
   const blockedRightNow = enabledRules.filter((r) => {
-    const todaySeconds = usage.days[dates[dates.length - 1]]?.[r.domain] ?? 0;
+    const todaySeconds = usageForRuleDomain(usage.days[dates[dates.length - 1]] ?? {}, r.domain);
     return isBlockedNow(r, todaySeconds, new Date());
   });
 

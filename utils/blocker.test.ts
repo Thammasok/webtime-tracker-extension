@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBlockedNow, ruleToDnrRule } from '@/utils/blocker';
+import { isBlockedNow, matchesRuleDomain, ruleToDnrRule, usageForRuleDomain } from '@/utils/blocker';
 import type { BlockRule } from '@/utils/types';
 
 function rule(overrides: Partial<BlockRule>): BlockRule {
@@ -114,5 +114,54 @@ describe('ruleToDnrRule', () => {
     // Should NOT match - different domains
     expect(pattern.test('https://google.com.evil.com')).toBe(false);
     expect(pattern.test('https://notgoogle.com')).toBe(false);
+  });
+
+  it('matches only the exact host for a subdomain-specific rule, not the bare domain or www', () => {
+    const dnrRule = ruleToDnrRule(rule({ domain: 'mail.google.com' }));
+    expect(dnrRule.condition.regexFilter).toBe('^https?://mail\\.google\\.com([:/?].*)?$');
+    const pattern = new RegExp(dnrRule.condition.regexFilter!, 'i');
+
+    expect(pattern.test('https://mail.google.com')).toBe(true);
+    expect(pattern.test('https://mail.google.com/inbox')).toBe(true);
+
+    expect(pattern.test('https://www.mail.google.com')).toBe(false);
+    expect(pattern.test('https://google.com')).toBe(false);
+    expect(pattern.test('https://www.google.com')).toBe(false);
+    expect(pattern.test('https://console.google.com')).toBe(false);
+  });
+});
+
+describe('matchesRuleDomain', () => {
+  it('an eTLD+1 rule matches the bare domain and its www. subdomain, not other subdomains', () => {
+    expect(matchesRuleDomain('google.com', 'google.com')).toBe(true);
+    expect(matchesRuleDomain('www.google.com', 'google.com')).toBe(true);
+    expect(matchesRuleDomain('mail.google.com', 'google.com')).toBe(false);
+  });
+
+  it('a subdomain-specific rule matches only that exact host', () => {
+    expect(matchesRuleDomain('mail.google.com', 'mail.google.com')).toBe(true);
+    expect(matchesRuleDomain('www.mail.google.com', 'mail.google.com')).toBe(false);
+    expect(matchesRuleDomain('google.com', 'mail.google.com')).toBe(false);
+  });
+
+  it('is case-insensitive', () => {
+    expect(matchesRuleDomain('Mail.Google.com', 'mail.google.com')).toBe(true);
+  });
+});
+
+describe('usageForRuleDomain', () => {
+  it('sums every subdomain rolling up to a bare eTLD+1 rule', () => {
+    const day = { 'google.com': 100, 'mail.google.com': 50, 'docs.google.com': 30, 'youtube.com': 999 };
+    expect(usageForRuleDomain(day, 'google.com')).toBe(180);
+  });
+
+  it('reads only its own key for a subdomain-specific rule', () => {
+    const day = { 'google.com': 100, 'mail.google.com': 50, 'docs.google.com': 30 };
+    expect(usageForRuleDomain(day, 'mail.google.com')).toBe(50);
+  });
+
+  it('is 0 when the domain has no tracked usage today', () => {
+    expect(usageForRuleDomain({}, 'google.com')).toBe(0);
+    expect(usageForRuleDomain({}, 'mail.google.com')).toBe(0);
   });
 });

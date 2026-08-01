@@ -1,7 +1,7 @@
-import { domainFromUrl } from '@/utils/domain'
+import { etld1, hostnameFromUrl, isSubdomainSpecific } from '@/utils/domain'
 import { todayISODate } from '@/utils/date'
 import { getRules, getUsage } from '@/utils/storage'
-import type { BlockRule, Domain, ScheduleWindow } from '@/utils/types'
+import type { BlockRule, DailyUsage, Domain, ScheduleWindow } from '@/utils/types'
 
 export function isWithinWindow(win: ScheduleWindow, now: Date): boolean {
   const day = now.getDay()
@@ -77,6 +77,15 @@ function ruleId(rule: BlockRule): number {
 }
 
 export function ruleToDnrRule(rule: BlockRule): Browser.declarativeNetRequest.Rule {
+  const escaped = escapeRegex(rule.domain)
+  // A bare eTLD+1 (e.g. google.com) blocks itself and its own www. subdomain, but no other
+  // subdomain. A subdomain-specific rule (e.g. mail.google.com) blocks only that exact host —
+  // see matchesRuleDomain, which the Firefox path uses to mirror this same distinction.
+  // Pattern: optional port/path/query after domain, then end anchor ($ must be outside alternation for RE2)
+  const regexFilter = isSubdomainSpecific(rule.domain)
+    ? String.raw`^https?://${escaped}([:/?].*)?$`
+    : String.raw`^https?://(www\.)?${escaped}([:/?].*)?$`
+
   return {
     id: ruleId(rule),
     priority: 1,
@@ -88,10 +97,7 @@ export function ruleToDnrRule(rule: BlockRule): Browser.declarativeNetRequest.Ru
           : { extensionPath: blockedPagePath(rule.domain) },
     },
     condition: {
-      // Match the exact domain and www. subdomain only (not all subdomains).
-      // e.g. google.com blocks google.com and www.google.com, but not console.google.com
-      // Pattern: optional port/path/query after domain, then end anchor ($ must be outside alternation for RE2)
-      regexFilter: String.raw`^https?://(www\.)?${escapeRegex(rule.domain)}([:/?].*)?$`,
+      regexFilter,
       isUrlFilterCaseSensitive: false,
       resourceTypes: ['main_frame'],
     },
@@ -102,11 +108,37 @@ function escapeRegex(str: string): string {
   return str.replace(/[.+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
+/** True if `hostname` should be treated as blocked by `ruleDomain`: an exact-match subdomain
+ * rule matches only that host; an eTLD+1 rule also matches its own www. subdomain. Mirrors the
+ * regex built by `ruleToDnrRule`, but as plain JS for the Firefox `webNavigation` path (which
+ * doesn't have DNR to evaluate a regexFilter). */
+export function matchesRuleDomain(hostname: string, ruleDomain: Domain): boolean {
+  const host = hostname.toLowerCase()
+  const domain = ruleDomain.toLowerCase()
+  if (isSubdomainSpecific(ruleDomain)) return host === domain
+  return host === domain || host === `www.${domain}`
+}
+
+/**
+ * How much of `dayUsage` counts toward `ruleDomain`'s daily limit. Usage is tracked per exact
+ * subdomain (`utils/tracker.ts`), so a subdomain-specific rule reads its own key directly, but a
+ * bare eTLD+1 rule (e.g. a "google.com" rule) needs the sum across every subdomain that rolls up
+ * to it (`google.com`, `mail.google.com`, `docs.google.com`, ...) — otherwise splitting usage out
+ * per subdomain would make a whole-site daily limit under-count.
+ */
+export function usageForRuleDomain(dayUsage: DailyUsage, ruleDomain: Domain): number {
+  if (isSubdomainSpecific(ruleDomain)) return dayUsage[ruleDomain] ?? 0
+  return Object.entries(dayUsage).reduce(
+    (sum, [host, seconds]) => (etld1(host) === ruleDomain ? sum + seconds : sum),
+    0,
+  )
+}
+
 async function currentlyBlockedRules(): Promise<BlockRule[]> {
   const [rules, usage] = await Promise.all([getRules(), getUsage()])
   const today = usage.days[todayISODate()] ?? {}
   const now = new Date()
-  return rules.filter((rule) => isBlockedNow(rule, today[rule.domain] ?? 0, now))
+  return rules.filter((rule) => isBlockedNow(rule, usageForRuleDomain(today, rule.domain), now))
 }
 
 /**
@@ -152,14 +184,14 @@ export async function syncBlockRules(): Promise<void> {
  * should be blocked right now, else `null`. Called from `webNavigation.onBeforeNavigate`.
  */
 export async function resolveBlockedRedirect(url: string): Promise<string | null> {
-  const domain = domainFromUrl(url)
-  if (!domain) return null
+  const hostname = hostnameFromUrl(url)
+  if (!hostname) return null
 
   const [rules, usage] = await Promise.all([getRules(), getUsage()])
-  const rule = rules.find((r) => r.domain === domain)
+  const rule = rules.find((r) => matchesRuleDomain(hostname, r.domain))
   if (!rule) return null
 
-  const usageSecondsToday = usage.days[todayISODate()]?.[domain] ?? 0
+  const usageSecondsToday = usageForRuleDomain(usage.days[todayISODate()] ?? {}, rule.domain)
   if (!isBlockedNow(rule, usageSecondsToday, new Date())) return null
 
   if (rule.mode === 'redirect' && rule.redirectUrl) return rule.redirectUrl

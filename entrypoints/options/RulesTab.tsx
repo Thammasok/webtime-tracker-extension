@@ -6,7 +6,7 @@ import { SiteIcon } from '@/components/site-icon';
 import { Switch } from '@/components/ui/switch';
 import { RuleDialog } from '@/components/rule-dialog';
 import type { ExtensionData } from '@/hooks/use-extension-data';
-import { isWithinWindow, windowEndDate } from '@/utils/blocker';
+import { isWithinWindow, usageForRuleDomain, windowEndDate } from '@/utils/blocker';
 import { todayISODate } from '@/utils/date';
 import { formatDuration } from '@/utils/format';
 import { removeRule, saveRule } from '@/utils/rule-actions';
@@ -122,7 +122,7 @@ export function RulesTab({ data }: { data: ExtensionData }) {
                   <span className="truncate">{rule.domain}</span>
                 </span>
                 <span>{modeBadge(rule)}</span>
-                <StatusCell rule={rule} usageSecondsToday={todayUsage[rule.domain] ?? 0} />
+                <StatusCell rule={rule} usageSecondsToday={usageForRuleDomain(todayUsage, rule.domain)} />
                 <span className="flex justify-end">
                   <Switch
                     checked={rule.enabled}

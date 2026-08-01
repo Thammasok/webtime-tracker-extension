@@ -1,4 +1,4 @@
-import { domainFromUrl } from '@/utils/domain';
+import { domainFromUrl, hostnameFromUrl } from '@/utils/domain';
 import { todayISODate } from '@/utils/date';
 import { addUsageSeconds } from '@/utils/storage';
 import type { Domain, Settings } from '@/utils/types';
@@ -78,10 +78,17 @@ export interface TrackabilityInput {
 }
 
 /**
- * Pure decision function: given the current idle/focus/tab/settings state, what domain (if any)
+ * Pure decision function: given the current idle/focus/tab/settings state, what key (if any)
  * should be accruing time right now? Kept separate from the `browser.*` querying in
  * `entrypoints/background.ts` so the tracking rules themselves are unit-testable without mocking
  * `browser.idle`/`browser.windows`/`browser.tabs`.
+ *
+ * Usage is tracked per exact subdomain, not the eTLD+1 — `mail.google.com` and `docs.google.com`
+ * accrue separately from `google.com` — so the Today tab can show them as distinct sites and a
+ * subdomain-specific rule's daily limit can see that subdomain's own usage. A `www.` prefix is
+ * still collapsed into the bare domain (they're the same site to a user). Code that wants the
+ * traditional "whole site" total (e.g. a bare-domain rule's daily limit, or the excluded-sites
+ * check) rolls these back up via `domainFromUrl`/`etld1` — see `utils/blocker.ts#usageForRuleDomain`.
  */
 export function resolveTrackableDomain({
   idleState,
@@ -98,5 +105,9 @@ export function resolveTrackableDomain({
   if (!domain) return null;
   if (settings.excludedDomains.includes(domain)) return null;
 
-  return domain;
+  const hostname = hostnameFromUrl(tab.url)!; // domainFromUrl succeeded above, so this must too
+  const trackingKey = hostname.replace(/^www\./, '');
+  if (settings.excludedDomains.includes(trackingKey)) return null;
+
+  return trackingKey;
 }

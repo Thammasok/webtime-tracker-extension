@@ -6,7 +6,7 @@ import { RuleDialog } from '@/components/rule-dialog';
 import { SiteIcon } from '@/components/site-icon';
 import { Switch } from '@/components/ui/switch';
 import type { ExtensionData } from '@/hooks/use-extension-data';
-import { isWithinWindow, windowEndDate } from '@/utils/blocker';
+import { isWithinWindow, usageForRuleDomain, windowEndDate } from '@/utils/blocker';
 import { todayISODate } from '@/utils/date';
 import { formatDuration } from '@/utils/format';
 import { removeRule, saveRule } from '@/utils/rule-actions';
@@ -73,7 +73,7 @@ export function BlockTab({ data }: { data: ExtensionData }) {
 
       <div className="flex flex-col gap-2">
         {rules.map((rule) => {
-          const status = statusLine(rule, todayUsage[rule.domain] ?? 0);
+          const status = statusLine(rule, usageForRuleDomain(todayUsage, rule.domain));
           return (
             <div
               key={rule.id}

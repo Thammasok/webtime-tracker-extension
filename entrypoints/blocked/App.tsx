@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isWithinWindow, windowEndDate } from '@/utils/blocker';
+import { isWithinWindow, usageForRuleDomain, windowEndDate } from '@/utils/blocker';
 import { todayISODate } from '@/utils/date';
 import { formatDuration } from '@/utils/format';
 import { getRules, getUsage } from '@/utils/storage';
@@ -22,7 +22,7 @@ async function loadBlockInfo(domain: string): Promise<BlockInfo | null> {
   const rule = rules.find((r) => r.domain === domain);
   if (!rule) return null;
 
-  const usageSecondsToday = usage.days[todayISODate()]?.[domain] ?? 0;
+  const usageSecondsToday = usageForRuleDomain(usage.days[todayISODate()] ?? {}, rule.domain);
   const now = new Date();
 
   if (rule.mode === 'always' || rule.mode === 'redirect') {

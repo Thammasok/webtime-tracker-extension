@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { domainFromUrl, normalizeDomainInput } from '@/utils/domain';
+import { domainFromUrl, hostnameFromUrl, isSubdomainSpecific, normalizeDomainInput } from '@/utils/domain';
 
 describe('domainFromUrl', () => {
   it('collapses subdomains to the eTLD+1', () => {
@@ -31,5 +31,31 @@ describe('normalizeDomainInput', () => {
     expect(normalizeDomainInput('')).toBeNull();
     expect(normalizeDomainInput('   ')).toBeNull();
     expect(normalizeDomainInput('not a domain')).toBeNull();
+  });
+
+  it('preserves a specific subdomain instead of collapsing it to the eTLD+1', () => {
+    expect(normalizeDomainInput('mail.google.com')).toBe('mail.google.com');
+    expect(normalizeDomainInput('https://mail.google.com/inbox')).toBe('mail.google.com');
+    // A www.-prefixed subdomain still reduces to the subdomain itself, not the bare eTLD+1.
+    expect(normalizeDomainInput('www.mail.google.com')).toBe('mail.google.com');
+  });
+});
+
+describe('hostnameFromUrl', () => {
+  it('preserves the full lowercased hostname, unlike domainFromUrl', () => {
+    expect(hostnameFromUrl('https://Mail.Google.com/inbox')).toBe('mail.google.com');
+    expect(hostnameFromUrl('https://www.facebook.com/feed')).toBe('www.facebook.com');
+  });
+
+  it('ignores non-http(s) schemes and unparseable URLs', () => {
+    expect(hostnameFromUrl('chrome://extensions')).toBeNull();
+    expect(hostnameFromUrl('not a url')).toBeNull();
+  });
+});
+
+describe('isSubdomainSpecific', () => {
+  it('is false for a bare eTLD+1 and true for a specific subdomain', () => {
+    expect(isSubdomainSpecific('google.com')).toBe(false);
+    expect(isSubdomainSpecific('mail.google.com')).toBe(true);
   });
 });

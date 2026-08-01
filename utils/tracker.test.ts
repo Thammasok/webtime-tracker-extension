@@ -104,4 +104,29 @@ describe('resolveTrackableDomain', () => {
     const settings = { ...DEFAULT_SETTINGS, excludedDomains: ['youtube.com'] };
     expect(resolveTrackableDomain({ ...base, settings })).toBeNull();
   });
+
+  it('collapses a www. prefix into the bare domain', () => {
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://www.youtube.com/watch' } })).toBe('youtube.com');
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://youtube.com/watch' } })).toBe('youtube.com');
+  });
+
+  it('tracks a subdomain distinctly from its eTLD+1, with no rule required', () => {
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://mail.google.com/inbox' } })).toBe(
+      'mail.google.com',
+    );
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://docs.google.com/doc' } })).toBe('docs.google.com');
+  });
+
+  it('excluding the eTLD+1 excludes all its subdomains', () => {
+    const settings = { ...DEFAULT_SETTINGS, excludedDomains: ['google.com'] };
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://mail.google.com/inbox' }, settings })).toBeNull();
+  });
+
+  it('excluding one specific subdomain does not exclude the rest of the site', () => {
+    const settings = { ...DEFAULT_SETTINGS, excludedDomains: ['mail.google.com'] };
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://mail.google.com/inbox' }, settings })).toBeNull();
+    expect(resolveTrackableDomain({ ...base, tab: { url: 'https://docs.google.com/doc' }, settings })).toBe(
+      'docs.google.com',
+    );
+  });
 });

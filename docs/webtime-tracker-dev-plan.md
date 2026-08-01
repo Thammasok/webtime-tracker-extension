@@ -9,6 +9,12 @@ Each phase has explicit files, APIs, gotchas, and acceptance criteria. Do not sk
 acceptance criteria — several bugs in this class of extension are invisible until you check
 for them deliberately.
 
+**Status:** Phases 0–5 are built (see `CLAUDE.md` for the as-built architecture and gotchas
+discovered along the way — some diverge from this plan, noted inline below). Phases 6–7
+(cross-browser E2E pass, store packaging) have **not** been started: there's no Playwright/E2E
+suite, and no store listing assets, privacy-policy copy, or permission-justification text yet —
+only `pnpm test` (Vitest, unit-level) and manual load-unpacked checks exist today.
+
 ---
 
 ## 0. Ground rules — read before writing any code
@@ -152,7 +158,9 @@ export type BlockMode = 'always' | 'redirect' | 'schedule';
 
 export interface BlockRule {
   id: string;                   // uuid
-  domain: Domain;               // match on eTLD+1 (and its subdomains)
+  domain: Domain;               // eTLD+1 (blocks bare + www.) OR one exact subdomain (blocks
+                                 // only that host) — see "Subdomain-specific rules" below, added
+                                 // after this plan was first written
   mode: BlockMode;
   enabled: boolean;
   redirectUrl?: string;         // mode 'redirect'; if absent → default /blocked.html
@@ -168,9 +176,14 @@ export interface Settings {
 }
 ```
 
-- `utils/domain.ts`: extract eTLD+1 from a URL. Use the `tldts` package (small, no network) so
-  `www.facebook.com`, `m.facebook.com`, `facebook.com` all normalize to `facebook.com`. Ignore
-  non-`http(s)` schemes (`chrome://`, `about:`, `moz-extension://`, `file://`).
+- `utils/domain.ts`: extract hostname/eTLD+1 from a URL using the `tldts` package (small, no
+  network). Ignore non-`http(s)` schemes (`chrome://`, `about:`, `moz-extension://`, `file://`).
+  **As-built, this got more nuanced than eTLD+1-only** (see "Subdomain-specific rules" below):
+  `domainFromUrl` still collapses everything to the eTLD+1 (`www.facebook.com`, `m.facebook.com`,
+  `facebook.com` → `facebook.com`) and is what usage-rollup and the excluded-sites check use, but
+  `hostnameFromUrl` preserves the full hostname, and `normalizeDomainInput` (the "add a rule"
+  input) only collapses a `www.` prefix — any other subdomain label is preserved distinctly so a
+  rule/usage can target that one subdomain specifically.
 - `utils/storage.ts`: typed getters/setters (`getUsage`, `addUsageSeconds(domain, secs, date)`,
   `getRules`, `upsertRule`, `deleteRule`, `getSettings`, `pruneOldDays`). Every write is
   read-modify-write against `storage.local`. Include a `version` field now to make future
@@ -200,6 +213,14 @@ these wrong inflates the numbers and makes the whole product untrustworthy.
 ```ts
 interface ActiveSession { domain: Domain; startedAt: number } | null
 ```
+
+> **As-built refinement:** `ActiveSession.domain` is not always the eTLD+1 — usage is tracked per
+> **exact subdomain**, collapsing only a `www.` prefix into the bare domain. `mail.google.com` and
+> `docs.google.com` accrue under distinct keys from `google.com`, so the Today/Summary UIs can
+> list them separately and a subdomain-specific `BlockRule`'s daily limit can see that
+> subdomain's own usage. Never write to both a subdomain key and its eTLD+1 for the same elapsed
+> span — every total in `utils/usage-summary.ts` sums all keys in a day, so that would
+> double-count it. See "Subdomain-specific rules" at the end of this document.
 
 - On any transition, **flush** the previous session (`now - startedAt` seconds → add to
   `storage.local` for today's bucket via `addUsageSeconds`), then start a new session for the
@@ -270,6 +291,20 @@ Each active block becomes a redirect rule on `main_frame` navigations:
 }
 ```
 
+> **As-built deviation:** `requestDomains` (and a `urlFilter` of `||domain^`) turned out to have a
+> real Edge bug where neither reliably matches a `www.` subdomain when the rule targets the bare
+> domain. The shipped implementation (`utils/blocker.ts#ruleToDnrRule`) uses `regexFilter`
+> instead, and the pattern branches on whether `rule.domain` is a bare eTLD+1 or a
+> subdomain-specific host (see "Subdomain-specific rules" below):
+> ```ts
+> // bare eTLD+1 (e.g. "google.com"): matches itself + www., nothing else
+> `^https?://(www\\.)?${escapedDomain}([:/?].*)?$`
+> // subdomain-specific (e.g. "mail.google.com"): matches only that exact host
+> `^https?://${escapedDomain}([:/?].*)?$`
+> ```
+> The Firefox `webNavigation` fallback path can't evaluate a DNR regex, so it mirrors this same
+> distinction in plain JS (`utils/blocker.ts#matchesRuleDomain`) rather than relying on DNR at all.
+
 **When to call `syncBlockRules()`:**
 - On rule create/update/delete (message from options/popup).
 - On the periodic alarm (so scheduled windows turn on/off, and daily-limit blocks kick in as time
@@ -322,7 +357,10 @@ supportive (this is a self-control tool, not a punishment screen).
   worker for it — it may be asleep; reading storage directly also sidesteps the "popup opens
   before worker ready" race).
 - Subscribe to `browser.storage.onChanged` so the list updates live while the popup is open.
-- Show: total time today, top N domains with time + a favicon, sorted descending.
+- Show: total time today, top N domains with time, sorted descending. **As-built:** no favicon
+  fetching — pulling a domain's `/favicon.ico` on every popup open would contradict the "nothing
+  leaves this device" pitch, so each site gets a deterministic colored-initial badge instead
+  (`components/site-icon.tsx`).
 - Each row: a quick "block" switch. Toggling it upserts an `always` BlockRule and sends a
   `SYNC_RULES` message so the background re-syncs DNR immediately.
 - Footer link/button → open the options/dashboard page (`browser.runtime.openOptionsPage()`).
@@ -362,7 +400,7 @@ honored by the prune alarm.
 
 ---
 
-## 8. Phase 6 — Cross-browser build & test
+## 8. Phase 6 — Cross-browser build & test — **NOT STARTED**
 
 - `npx wxt build -b chrome | -b firefox | -b edge` all succeed; `wxt zip -b <target>` produces
   per-store packages.
@@ -378,7 +416,7 @@ honored by the prune alarm.
 
 ---
 
-## 9. Phase 7 — Packaging & store prep
+## 9. Phase 7 — Packaging & store prep — **NOT STARTED**
 
 - Icons at 16/32/48/128 in `public/icon/` (WXT auto-wires them).
 - Per-store listing assets + screenshots.
@@ -389,6 +427,35 @@ honored by the prune alarm.
 - `wxt submit` can push per-browser packages; confirm each store's current requirements first.
 
 ---
+
+## Addendum — Subdomain-specific rules (added after this plan was first built)
+
+This plan originally modeled `BlockRule.domain`/tracking purely at eTLD+1 granularity. That
+turned out to be too coarse: a user blocking `google.com` has no way to target just
+`mail.google.com` without also touching every other Google product, and there was no way to see
+`mail.google.com` vs `docs.google.com` as separate entries in the Today/Summary views. The
+as-built behavior:
+
+- **`BlockRule.domain`** can be a bare eTLD+1 (`google.com` — matches itself + `www.`, blocks the
+  whole site the same as originally planned) **or** one exact subdomain (`mail.google.com` —
+  matches only that host, no `www.` expansion, doesn't touch the rest of the site). The
+  rule-dialog's domain input (`utils/domain.ts#normalizeDomainInput`) decides which: typing a
+  bare or `www.`-prefixed domain produces the former; typing anything with an extra subdomain
+  label produces the latter.
+- **Usage tracking** (`utils/tracker.ts#resolveTrackableDomain`) accrues per exact subdomain
+  (collapsing only `www.`), not per eTLD+1, so the granularity above is actually observable and
+  a subdomain-specific rule's daily limit has real data to check against.
+- **A bare-domain rule's daily limit** needs the *sum* across every subdomain of that site, since
+  usage is now split out per subdomain — `utils/blocker.ts#usageForRuleDomain` does that rollup
+  (exact-key lookup for a subdomain-specific rule, sum-by-eTLD+1 for a bare-domain rule). Every UI
+  that shows a rule's today-usage goes through this helper rather than indexing
+  `usage.days[...][rule.domain]` directly — see `CLAUDE.md` gotcha #8.
+- **DNR matching** (Chrome/Edge) and the Firefox `webNavigation` fallback both branch on the same
+  bare-vs-subdomain distinction — see the Phase 3 "as-built deviation" note above.
+
+This is a meaningfully bigger surface than the original one-line `domain: Domain` field implied;
+`CLAUDE.md` has the fuller implementation-level detail (files, gotchas, tests) if extending this
+further.
 
 ## 10. Known risks / decisions to raise with the human
 

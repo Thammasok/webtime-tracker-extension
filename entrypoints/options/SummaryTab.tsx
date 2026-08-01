@@ -71,10 +71,8 @@ export function SummaryTab({ data }: { data: ExtensionData }) {
   const shownSites = sites.slice(0, TOP_SITES_SHOWN);
 
   // A 30-bar chart needs a much tighter gap/width than 7 (or 1) bars, or it overflows the card —
-  // narrow the gap, drop the per-bar max-width cap, and thin out the day labels so they don't
-  // collide with each other.
+  // narrow the gap and drop the per-bar max-width cap.
   const isDenseChart = dates.length > 7;
-  const labelEvery = Math.max(1, Math.ceil(dates.length / 6));
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,11 +134,10 @@ export function SummaryTab({ data }: { data: ExtensionData }) {
               ))}
             </div>
           </div>
-          <div className={`mt-4 flex h-[190px] items-end ${isDenseChart ? 'gap-[2px]' : 'gap-4'}`}>
+          <div className={`mt-4 flex h-[190px] ${isDenseChart ? 'gap-[2px]' : 'gap-4'}`}>
             {dates.map((date, i) => {
               const dayTotal = totals[i];
               const heightPct = Math.max(dayTotal > 0 ? 4 : 0, (dayTotal / maxDayTotal) * 100);
-              const showLabel = !isDenseChart || i % labelEvery === 0 || i === dates.length - 1;
               return (
                 <div key={date} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                   <div
@@ -158,7 +155,7 @@ export function SummaryTab({ data }: { data: ExtensionData }) {
                     </div>
                   </div>
                   <span className="text-[10px] font-semibold text-faint">
-                    {showLabel ? (isDenseChart ? new Date(date).getDate() : DAY_LABELS[new Date(date).getDay()]) : ''}
+                    {isDenseChart ? new Date(date).getDate() : DAY_LABELS[new Date(date).getDay()]}
                   </span>
                 </div>
               );

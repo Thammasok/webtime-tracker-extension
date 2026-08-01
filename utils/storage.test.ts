@@ -8,7 +8,10 @@ import {
   getSettings,
   getUsage,
   getUsageForDate,
+  getVisits,
+  getVisitsForDate,
   importData,
+  incrementVisitCount,
   pruneOldDays,
   updateSettings,
   upsertRule,
@@ -60,6 +63,38 @@ describe('pruneOldDays', () => {
     await pruneOldDays(0, now);
     expect(await getUsageForDate('2020-01-01')).toEqual({ 'example.com': 10 });
   });
+
+  it('also prunes visit counts beyond retention', async () => {
+    const now = new Date('2026-07-30T12:00:00');
+    await incrementVisitCount('example.com', '2026-07-30'); // today
+    await incrementVisitCount('example.com', '2026-01-01'); // way beyond retention
+
+    await pruneOldDays(90, now);
+
+    const visits = await getVisits();
+    expect(Object.keys(visits.days)).toEqual(['2026-07-30']);
+  });
+});
+
+describe('incrementVisitCount', () => {
+  it('accumulates across multiple calls the same day', async () => {
+    await incrementVisitCount('example.com', '2026-07-30');
+    await incrementVisitCount('example.com', '2026-07-30');
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'example.com': 2 });
+  });
+
+  it('tracks multiple domains independently within the same day', async () => {
+    await incrementVisitCount('a.com', '2026-07-30');
+    await incrementVisitCount('b.com', '2026-07-30');
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'a.com': 1, 'b.com': 1 });
+  });
+
+  it('creates a new bucket on day rollover instead of merging into an existing day', async () => {
+    await incrementVisitCount('example.com', '2026-07-30');
+    await incrementVisitCount('example.com', '2026-07-31');
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'example.com': 1 });
+    expect(await getVisitsForDate('2026-07-31')).toEqual({ 'example.com': 1 });
+  });
 });
 
 describe('rules', () => {
@@ -102,20 +137,23 @@ describe('settings', () => {
 });
 
 describe('clearAllData / export / import', () => {
-  it('clearAllData resets usage, rules, and settings', async () => {
+  it('clearAllData resets usage, visits, rules, and settings', async () => {
     await addUsageSeconds('example.com', 10, '2026-07-30');
+    await incrementVisitCount('example.com', '2026-07-30');
     await upsertRule({ domain: 'example.com', mode: 'always', enabled: true });
     await updateSettings({ retentionDays: 30 });
 
     await clearAllData();
 
     expect(await getUsage()).toEqual({ version: 1, days: {} });
+    expect(await getVisits()).toEqual({ version: 1, days: {} });
     expect(await getRules()).toEqual([]);
     expect((await getSettings()).retentionDays).toBe(90);
   });
 
   it('round-trips through exportData/importData', async () => {
     await addUsageSeconds('example.com', 10, '2026-07-30');
+    await incrementVisitCount('example.com', '2026-07-30');
     await upsertRule({ domain: 'example.com', mode: 'always', enabled: true });
 
     const exported = await exportData();
@@ -123,7 +161,21 @@ describe('clearAllData / export / import', () => {
     await importData(exported);
 
     expect(await getUsageForDate('2026-07-30')).toEqual({ 'example.com': 10 });
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'example.com': 1 });
     expect((await getRules())[0].domain).toBe('example.com');
+  });
+
+  it('importData defaults visits to empty when importing an older export without them', async () => {
+    await addUsageSeconds('example.com', 10, '2026-07-30');
+    const exported = await exportData();
+    await incrementVisitCount('example.com', '2026-07-30'); // present locally, absent from export
+    // @ts-expect-error simulating a pre-visit-tracking export file
+    delete exported.visits;
+
+    await clearAllData();
+    await importData(exported);
+
+    expect(await getVisits()).toEqual({ version: 1, days: {} });
   });
 
   it('importData rejects an unsupported version', async () => {

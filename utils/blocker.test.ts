@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isBlockedNow, matchesRuleDomain, ruleToDnrRule, usageForRuleDomain } from '@/utils/blocker';
+import {
+  isBlockedNow,
+  matchesRuleDomain,
+  ruleToDnrRule,
+  usageForRuleDomain,
+  visitsForRuleDomain,
+} from '@/utils/blocker';
 import type { BlockRule } from '@/utils/types';
 
 function rule(overrides: Partial<BlockRule>): BlockRule {
@@ -163,5 +169,22 @@ describe('usageForRuleDomain', () => {
   it('is 0 when the domain has no tracked usage today', () => {
     expect(usageForRuleDomain({}, 'google.com')).toBe(0);
     expect(usageForRuleDomain({}, 'mail.google.com')).toBe(0);
+  });
+});
+
+describe('visitsForRuleDomain', () => {
+  it('sums every subdomain rolling up to a bare eTLD+1 rule', () => {
+    const day = { 'google.com': 2, 'mail.google.com': 3, 'docs.google.com': 1, 'youtube.com': 99 };
+    expect(visitsForRuleDomain(day, 'google.com')).toBe(6);
+  });
+
+  it('reads only its own key for a subdomain-specific rule', () => {
+    const day = { 'google.com': 2, 'mail.google.com': 3, 'docs.google.com': 1 };
+    expect(visitsForRuleDomain(day, 'mail.google.com')).toBe(3);
+  });
+
+  it('is 0 when the domain has no tracked visits today', () => {
+    expect(visitsForRuleDomain({}, 'google.com')).toBe(0);
+    expect(visitsForRuleDomain({}, 'mail.google.com')).toBe(0);
   });
 });

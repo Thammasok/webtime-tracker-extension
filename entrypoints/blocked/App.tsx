@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { isWithinWindow, usageForRuleDomain, windowEndDate } from '@/utils/blocker';
+import { isWithinWindow, usageForRuleDomain, visitsForRuleDomain, windowEndDate } from '@/utils/blocker';
 import { todayISODate } from '@/utils/date';
 import { formatDuration } from '@/utils/format';
-import { getRules, getUsage } from '@/utils/storage';
+import { getRules, getUsage, getVisits } from '@/utils/storage';
 import type { BlockRule } from '@/utils/types';
 import { Button } from '@/components/ui/button';
 
@@ -13,20 +13,29 @@ function domainFromQuery(): string {
 interface BlockInfo {
   rule: BlockRule;
   usageSecondsToday: number;
+  visitsToday: number;
   reason: string;
   unlockLabel: string | null;
 }
 
 async function loadBlockInfo(domain: string): Promise<BlockInfo | null> {
-  const [rules, usage] = await Promise.all([getRules(), getUsage()]);
+  const [rules, usage, visits] = await Promise.all([getRules(), getUsage(), getVisits()]);
   const rule = rules.find((r) => r.domain === domain);
   if (!rule) return null;
 
-  const usageSecondsToday = usageForRuleDomain(usage.days[todayISODate()] ?? {}, rule.domain);
+  const today = todayISODate();
+  const usageSecondsToday = usageForRuleDomain(usage.days[today] ?? {}, rule.domain);
+  const visitsToday = visitsForRuleDomain(visits.days[today] ?? {}, rule.domain);
   const now = new Date();
 
   if (rule.mode === 'always' || rule.mode === 'redirect') {
-    return { rule, usageSecondsToday, reason: "You've chosen to always block this site.", unlockLabel: null };
+    return {
+      rule,
+      usageSecondsToday,
+      visitsToday,
+      reason: "You've chosen to always block this site.",
+      unlockLabel: null,
+    };
   }
 
   const activeWindow = (rule.windows ?? []).find((w) => isWithinWindow(w, now));
@@ -35,6 +44,7 @@ async function loadBlockInfo(domain: string): Promise<BlockInfo | null> {
     return {
       rule,
       usageSecondsToday,
+      visitsToday,
       reason: "You're inside a scheduled focus window for this site.",
       unlockLabel,
     };
@@ -43,6 +53,7 @@ async function loadBlockInfo(domain: string): Promise<BlockInfo | null> {
   return {
     rule,
     usageSecondsToday,
+    visitsToday,
     reason: `You hit your ${formatDuration(rule.dailyLimitSeconds ?? 0)} daily limit here.`,
     unlockLabel: 'tomorrow',
   };
@@ -89,6 +100,11 @@ function App() {
               <span className="rounded-full border border-border bg-card px-4 py-1.5 font-semibold">
                 ⏱ Used {formatDuration(info.usageSecondsToday)} of {formatDuration(info.rule.dailyLimitSeconds)}{' '}
                 today
+              </span>
+            )}
+            {info.visitsToday > 0 && (
+              <span className="rounded-full border border-border bg-card px-4 py-1.5 font-semibold">
+                👀 Opened {info.visitsToday}× today
               </span>
             )}
             {info.unlockLabel && (

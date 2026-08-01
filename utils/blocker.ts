@@ -1,7 +1,7 @@
 import { etld1, hostnameFromUrl, isSubdomainSpecific } from '@/utils/domain'
 import { todayISODate } from '@/utils/date'
 import { getRules, getUsage } from '@/utils/storage'
-import type { BlockRule, DailyUsage, Domain, ScheduleWindow } from '@/utils/types'
+import type { BlockRule, DailyUsage, DailyVisits, Domain, ScheduleWindow } from '@/utils/types'
 
 export function isWithinWindow(win: ScheduleWindow, now: Date): boolean {
   const day = now.getDay()
@@ -130,6 +130,17 @@ export function usageForRuleDomain(dayUsage: DailyUsage, ruleDomain: Domain): nu
   if (isSubdomainSpecific(ruleDomain)) return dayUsage[ruleDomain] ?? 0
   return Object.entries(dayUsage).reduce(
     (sum, [host, seconds]) => (etld1(host) === ruleDomain ? sum + seconds : sum),
+    0,
+  )
+}
+
+/** Same subdomain-vs-eTLD+1 rollup as `usageForRuleDomain`, but for open counts rather than
+ * seconds — how many times `ruleDomain` (or, for a bare-domain rule, any of its subdomains) was
+ * opened today. */
+export function visitsForRuleDomain(dayVisits: DailyVisits, ruleDomain: Domain): number {
+  if (isSubdomainSpecific(ruleDomain)) return dayVisits[ruleDomain] ?? 0
+  return Object.entries(dayVisits).reduce(
+    (sum, [host, count]) => (etld1(host) === ruleDomain ? sum + count : sum),
     0,
   )
 }

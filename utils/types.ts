@@ -10,6 +10,15 @@ export interface UsageStore {
   days: { [date: ISODate]: DailyUsage };
 }
 
+export interface DailyVisits {
+  [domain: Domain]: number; // number of times the domain was opened, that day
+}
+
+export interface VisitStore {
+  version: 1;
+  days: { [date: ISODate]: DailyVisits };
+}
+
 export type BlockMode = 'always' | 'redirect' | 'schedule';
 
 export interface ScheduleWindow {
@@ -49,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface ExportedData {
   exportedAt: number; // epoch ms
   usage: UsageStore;
+  visits: VisitStore;
   rules: BlockRule[];
   settings: Settings;
 }

@@ -4,11 +4,13 @@ import {
   DEFAULT_SETTINGS,
   type BlockRule,
   type DailyUsage,
+  type DailyVisits,
   type Domain,
   type ExportedData,
   type ISODate,
   type Settings,
   type UsageStore,
+  type VisitStore,
 } from '@/utils/types';
 
 /**
@@ -19,11 +21,16 @@ import {
 
 const KEYS = {
   usage: 'usage',
+  visits: 'visits',
   rules: 'rules',
   settings: 'settings',
 } as const;
 
 function emptyUsage(): UsageStore {
+  return { version: 1, days: {} };
+}
+
+function emptyVisits(): VisitStore {
   return { version: 1, days: {} };
 }
 
@@ -63,6 +70,35 @@ export async function pruneOldDays(retentionDays: number, now: Date = new Date()
     }
   }
   if (changed) await browser.storage.local.set({ [KEYS.usage]: usage });
+
+  const visits = await getVisits();
+  let visitsChanged = false;
+  for (const date of Object.keys(visits.days)) {
+    if (daysAgo(date, now) > retentionDays) {
+      delete visits.days[date];
+      visitsChanged = true;
+    }
+  }
+  if (visitsChanged) await browser.storage.local.set({ [KEYS.visits]: visits });
+}
+
+export async function getVisits(): Promise<VisitStore> {
+  const { [KEYS.visits]: visits } = await browser.storage.local.get(KEYS.visits);
+  return (visits as VisitStore | undefined) ?? emptyVisits();
+}
+
+export async function getVisitsForDate(date: ISODate = todayISODate()): Promise<DailyVisits> {
+  const visits = await getVisits();
+  return visits.days[date] ?? {};
+}
+
+/** Read-modify-write: increments `domain`'s open count for `date` (default: today) by one. */
+export async function incrementVisitCount(domain: Domain, date: ISODate = todayISODate()): Promise<void> {
+  const visits = await getVisits();
+  const day = visits.days[date] ?? {};
+  day[domain] = (day[domain] ?? 0) + 1;
+  visits.days[date] = day;
+  await browser.storage.local.set({ [KEYS.visits]: visits });
 }
 
 export async function getRules(): Promise<BlockRule[]> {
@@ -102,23 +138,31 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
 export async function clearAllData(): Promise<void> {
   await browser.storage.local.set({
     [KEYS.usage]: emptyUsage(),
+    [KEYS.visits]: emptyVisits(),
     [KEYS.rules]: [],
     [KEYS.settings]: { ...DEFAULT_SETTINGS },
   });
 }
 
 export async function exportData(): Promise<ExportedData> {
-  const [usage, rules, settings] = await Promise.all([getUsage(), getRules(), getSettings()]);
-  return { exportedAt: Date.now(), usage, rules, settings };
+  const [usage, visits, rules, settings] = await Promise.all([
+    getUsage(),
+    getVisits(),
+    getRules(),
+    getSettings(),
+  ]);
+  return { exportedAt: Date.now(), usage, visits, rules, settings };
 }
 
-/** Overwrites usage/rules/settings from a previously exported file. */
+/** Overwrites usage/rules/settings from a previously exported file. `visits` is optional so
+ * exports made before visit-counting existed still import cleanly. */
 export async function importData(data: ExportedData): Promise<void> {
   if (data.usage?.version !== 1 || data.settings?.version !== 1) {
     throw new Error('Unsupported export file version.');
   }
   await browser.storage.local.set({
     [KEYS.usage]: data.usage,
+    [KEYS.visits]: data.visits?.version === 1 ? data.visits : emptyVisits(),
     [KEYS.rules]: data.rules ?? [],
     [KEYS.settings]: { ...DEFAULT_SETTINGS, ...data.settings },
   });

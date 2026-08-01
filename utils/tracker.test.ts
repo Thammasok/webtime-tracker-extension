@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flushAndRestart, getActiveSession, resolveTrackableDomain, switchSession } from '@/utils/tracker';
-import { getUsageForDate } from '@/utils/storage';
+import { getUsageForDate, getVisitsForDate } from '@/utils/storage';
 import { DEFAULT_SETTINGS } from '@/utils/types';
 
 const T = (iso: string) => new Date(iso).getTime();
@@ -42,6 +42,30 @@ describe('switchSession', () => {
 
     expect(await getUsageForDate('2026-07-30')).toEqual({ 'youtube.com': 10 });
     expect(await getUsageForDate('2026-07-31')).toEqual({ 'youtube.com': 20 });
+  });
+
+  it('counts an "open" each time a new domain starts being tracked', async () => {
+    await switchSession('youtube.com', T('2026-07-30T10:00:00'));
+    await switchSession('github.com', T('2026-07-30T10:00:30'));
+    await switchSession('youtube.com', T('2026-07-30T10:01:00')); // back to youtube = another open
+
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'youtube.com': 2, 'github.com': 1 });
+  });
+
+  it('does not count an open when switching to null (blur/idle) or staying on the same domain', async () => {
+    await switchSession('youtube.com', T('2026-07-30T10:00:00'));
+    await switchSession('youtube.com', T('2026-07-30T10:00:10')); // no-op, same domain
+    await switchSession(null, T('2026-07-30T10:00:20')); // blur/idle
+
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'youtube.com': 1 });
+  });
+
+  it('credits the open to the day the switch happens on, across a midnight boundary', async () => {
+    await switchSession('youtube.com', T('2026-07-30T23:59:50'));
+    await switchSession('github.com', T('2026-07-31T00:00:20'));
+
+    expect(await getVisitsForDate('2026-07-30')).toEqual({ 'youtube.com': 1 });
+    expect(await getVisitsForDate('2026-07-31')).toEqual({ 'github.com': 1 });
   });
 });
 

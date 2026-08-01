@@ -1,6 +1,6 @@
 import { domainFromUrl, hostnameFromUrl } from '@/utils/domain';
 import { todayISODate } from '@/utils/date';
-import { addUsageSeconds } from '@/utils/storage';
+import { addUsageSeconds, incrementVisitCount } from '@/utils/storage';
 import type { Domain, Settings } from '@/utils/types';
 
 /** Persisted in `storage.session` (survives worker restart, cleared on browser close) — never
@@ -45,6 +45,10 @@ async function flushElapsed(domain: Domain, startedAt: number, endedAt: number):
  * (or stops tracking entirely if `domain` is `null` — the browser lost focus, the user went
  * idle, or the active tab isn't trackable). This is the only way the active session should
  * change domain.
+ *
+ * Every time this actually starts tracking a (different) domain, that counts as one "open" of
+ * the site for the day — recorded separately from elapsed seconds so the blocked page can show
+ * "opened N times today" even for sites with very short visits.
  */
 export async function switchSession(domain: Domain | null, now: number = Date.now()): Promise<void> {
   const session = await getActiveSession();
@@ -53,6 +57,7 @@ export async function switchSession(domain: Domain | null, now: number = Date.no
   // next flush) or restart (that would reset `startedAt` and lose the elapsed-so-far time).
 
   if (session) await flushElapsed(session.domain, session.startedAt, now);
+  if (domain) await incrementVisitCount(domain, todayISODate(new Date(now)));
   await setActiveSession(domain ? { domain, startedAt: now } : null);
 }
 

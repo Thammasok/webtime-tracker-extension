@@ -81,7 +81,7 @@ describe('ruleToDnrRule', () => {
   // like 'www.facebook.com' when the rule targets 'facebook.com'. Use regexFilter as workaround.
   it('uses regexFilter to match domain and www subdomain only', () => {
     const dnrRule = ruleToDnrRule(rule({ domain: 'facebook.com' }));
-    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?facebook\\.com(:[0-9]|/|\\?|$)');
+    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?facebook\\.com([:/?].*)?$');
     expect(dnrRule.condition.isUrlFilterCaseSensitive).toBe(false);
     expect(dnrRule.condition.urlFilter).toBeUndefined();
     expect(dnrRule.condition.requestDomains).toBeUndefined();
@@ -89,7 +89,7 @@ describe('ruleToDnrRule', () => {
 
   it('escapes special regex characters in domain', () => {
     const dnrRule = ruleToDnrRule(rule({ domain: 'example.co.uk' }));
-    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?example\\.co\\.uk(:[0-9]|/|\\?|$)');
+    expect(dnrRule.condition.regexFilter).toBe('^https?://(www\\.)?example\\.co\\.uk([:/?].*)?$');
   });
 
   it('regex matches domain and www subdomain, but not other subdomains', () => {

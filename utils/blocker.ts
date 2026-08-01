@@ -90,7 +90,8 @@ export function ruleToDnrRule(rule: BlockRule): Browser.declarativeNetRequest.Ru
     condition: {
       // Match the exact domain and www. subdomain only (not all subdomains).
       // e.g. google.com blocks google.com and www.google.com, but not console.google.com
-      regexFilter: String.raw`^https?://(www\.)?${escapeRegex(rule.domain)}(:[0-9]|/|\?|$)`,
+      // Pattern: optional port/path/query after domain, then end anchor ($ must be outside alternation for RE2)
+      regexFilter: String.raw`^https?://(www\.)?${escapeRegex(rule.domain)}([:/?].*)?$`,
       isUrlFilterCaseSensitive: false,
       resourceTypes: ['main_frame'],
     },
